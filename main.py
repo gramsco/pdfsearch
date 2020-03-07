@@ -14,22 +14,60 @@ import sys
 
 """
 
-directory = os.fsencode('./')
 
-if not os.path.exists('pdfquery_results'):
-    os.makedirs('pdfquery_results')
+def askForOutput(question):
+  yes = ["y", "yes"]
+  no = ["n", "no"]
+  isGoodAnswer = False
+  while isGoodAnswer == False:
+    answer = input(question)
+    if (answer in yes):
+      return True
+    if (answer in no):
+      return False
 
-query = sys.argv[1]
+def leave():
+  print("~ bye")
+  exit()
+
+path = os.getcwd()
+argLen = len(sys.argv)
+
+# if no argv, merges all the file in the current directory
+if argLen == 1:
+  where = './'
+  query = ''
+
+#if path but no query, merges all the file in the specified directory
+elif argLen == 2:
+  if(askForOutput("No query specified. Query all files? ")):
+    where = os.path.join(path, sys.argv[1])
+    query = ''
+  else:
+    leave()
+    
+#standard behavior: looks for the query in every pdf file and merge the results
+else:
+  where = os.path.join(path, sys.argv[1])
+  query = sys.argv[2]
+
+directory = os.fsencode(where)
+
+if not os.path.exists(os.path.join(where, 'pdfquery_results')):
+    os.makedirs(os.path.join(where,'pdfquery_results'))
 
 def queryPDFs(query):
   pages = []
-  print("looking for " + query)
+  print()
+  print("> Looking for " + '"' + query + '"')
   for file in os.listdir(directory):
     filename = os.fsdecode(file)
     
     if filename.endswith(".pdf"):
-        print(" -> " + filename + " found.")
-        pdfFile = open(filename, 'rb')
+        print()
+        print(" || " + filename + " || ")
+        print()
+        pdfFile = open(os.path.join(where, filename), 'rb')
         try:
           reader = PyPDF2.PdfFileReader(pdfFile)
           for pageNum in range(reader.numPages):
@@ -37,34 +75,35 @@ def queryPDFs(query):
               contentPage = page.extractText()
               find = contentPage.find(query)
               if find != -1:
-                print("Match on page " + str(pageNum))
+                print("\t -> match on page " + str(pageNum))
                 pages.append(page)
-              else:
-                print("Page : " + str(pageNum))
+
         except:
-          print(filename + "can't be added, sorry")
+          print(filename + "can't be added, sorry :(")
 
   return pages      
         
 writer = PyPDF2.PdfFileWriter()
 pages = queryPDFs(query)
 
-def askForOutput():
-  yes = ["y", "yes"]
-  no = ["n", "no"]
-  isGoodAnswer = False
-  while isGoodAnswer == False:
-    answer = input("Do you want to create a file? ")
-    if (answer in yes):
-      return True
-    if (answer in no):
-      return False
+if len(pages) == 0:
+  print("no match, sorry :(")
+  exit()
 
-if askForOutput():
+print()
+
+if askForOutput("Do you want to create a file? "):
   if len(pages) != 0:
     for page in pages:
       writer.addPage(page)
 
-  outputfile = open('./pdfquery_results/' + query + ".pdf", 'wb')
+  outputfile = open(os.path.join(where, 'pdfquery_results/' + query + ".pdf"), 'wb')
   writer.write(outputfile)
+  print()
+  print('\t––––––––––––––––––––––––––––––––')
+  print("\t" + query + ".pdf" + " created!")
+  print('\t––––––––––––––––––––––––––––––––')
+  print()
   outputfile.close()
+
+leave()
